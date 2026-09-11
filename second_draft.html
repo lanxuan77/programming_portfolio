@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sanrio Snake</title>
+<style>
+  /* ============================================================
+     THEME VARIABLES
+     These get updated by JavaScript whenever the player picks a
+     different character, so the whole page re-colors itself.
+     ============================================================ */
+  :root {
+    --primary: #ffb6c9;
+    --secondary: #fff5f8;
+    --accent: #ff6b93;
+    --board-light: #fff0f5;
+    --board-dark: #ffd6e3;
+    --bg-start: #ffe4ec;
+    --bg-end: #ffc2d6;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: 'Trebuchet MS', 'Comic Sans MS', 'Segoe UI', sans-serif;
+    background: linear-gradient(160deg, var(--bg-start), var(--bg-end));
+    background-attachment: fixed;
+    color: #5a4453;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    transition: background 0.5s ease;
+  }
+
+  #app {
+    width: 100%;
+    max-width: 560px;
+  }
+
+  .hidden { display: none !important; }
+
+  h1 {
+    text-align: center;
+    font-size: 2rem;
+    margin: 0 0 4px;
+    color: var(--accent);
+    text-shadow: 1px 1px 0 #fff;
+  }
+
+  .subtitle {
+    text-align: center;
+    margin: 0 0 18px;
+    opacity: 0.8;
+  }
+
+  /* ============================================================
+     CHARACTER SELECT SCREEN
+     ============================================================ */
+  #character-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .char-card {
+    background: #fff;
+    border: 3px solid transparent;
+    border-radius: 18px;
+    padding: 10px 6px 12px;
+    text-align: center;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+    transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .char-card:hover {
+    transform: translateY(-3px) scale(1.03);
+    box-shadow: 0 8px 16px rgba(0,0,0,0.12);
+  }
+
+  .char-card.selected {
+    border-color: var(--accent);
+    background: var(--secondary);
+    box-shadow: 0 0 0 4px rgba(255,255,255,0.6), 0 8px 16px rgba(0,0,0,0.15);
+  }
+
+  .char-card img {
+    display: block;
+    margin: 0 auto 6px;
+    width: 90px;
+    height: 90px;
+    object-fit: contain;
+  }
+
+  .char-card .char-name {
+    font-weight: bold;
+    font-size: 0.85rem;
+  }
+
+  #play-btn {
+    display: block;
+    margin: 0 auto;
+    font-size: 1.1rem;
+  }
+
+
+  /* ============================================================
+     BUTTONS (shared kawaii style)
+     ============================================================ */
+  button {
+    font-family: inherit;
+    font-size: 0.95rem;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 999px;
+    background: var(--accent);
+    color: #fff;
+    cursor: pointer;
+    box-shadow: 0 4px 0 rgba(0,0,0,0.12);
+    transition: transform 0.1s ease, opacity 0.2s ease;
+  }
+
+  button:active { transform: translateY(2px); box-shadow: 0 2px 0 rgba(0,0,0,0.12); }
+
+  button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  button.secondary-btn {
+    background: #fff;
+    color: var(--accent);
+    border: 2px solid var(--accent);
+    box-shadow: 0 4px 0 rgba(0,0,0,0.06);
+  }
+
+  /* ============================================================
+     GAME SCREEN
+     ============================================================ */
+  #game-screen {
+    text-align: center;
+  }
+
+  #hud {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    font-weight: bold;
+  }
+
+  #hud .score-box {
+    background: #fff;
+    border-radius: 14px;
+    padding: 6px 14px;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.08);
+  }
+
+  #game-canvas {
+    border-radius: 20px;
+    box-shadow: 0 10px 24px rgba(0,0,0,0.18);
+    background: var(--board-light);
+    touch-action: none;
+  }
+
+  #controls-hint {
+    margin-top: 10px;
+    font-size: 0.85rem;
+    opacity: 0.7;
+  }
+
+  #hud-buttons {
+    margin-top: 12px;
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+  }
+
+  /* ============================================================
+     GAME OVER SCREEN
+     ============================================================ */
+  #gameover-screen {
+    text-align: center;
+    background: #fff;
+    border-radius: 22px;
+    padding: 30px 20px;
+    box-shadow: 0 10px 24px rgba(0,0,0,0.15);
+  }
+
+  #gameover-screen h2 {
+    color: var(--accent);
+    font-size: 1.6rem;
+    margin-top: 0;
+  }
+
+  #final-score {
+    font-size: 1.1rem;
+    margin-bottom: 20px;
+  }
+
+  #gameover-buttons {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+  }
+
+  .sparkle-emoji {
+    display: inline-block;
+    animation: spin-sparkle 2s linear infinite;
+  }
+
+  @keyframes spin-sparkle {
+    0%, 100% { transform: rotate(0deg) scale(1); }
+    50% { transform: rotate(15deg) scale(1.15); }
+  }
+</style>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ================= CHARACTER SELECT SCREEN ================= -->
+  <section id="select-screen">
+    <h1><span class="sparkle-emoji">🎀</span> Sanrio Snake <span class="sparkle-emoji">🎀</span></h1>
+    <p class="subtitle">Pick a character to begin!</p>
+    <div id="character-grid"><!-- character cards get added here by JS --></div>
+    <button id="play-btn" disabled>Play ▶</button>
+  </section>
+
+  <!-- ================= GAME SCREEN ================= -->
+  <section id="game-screen" class="hidden">
+    <div id="hud">
+      <div class="score-box">Score: <span id="score">0</span></div>
+      <div class="score-box">Best: <span id="highscore">0</span></div>
+    </div>
+    <canvas id="game-canvas" width="440" height="440"></canvas>
+    <p id="controls-hint">Use Arrow Keys or WASD to move</p>
+    <div id="hud-buttons">
+      <button id="restart-btn" class="secondary-btn">🔄 Restart</button>
+      <button id="back-btn" class="secondary-btn">🏠 Characters</button>
+    </div>
+  </section>
+
+  <!-- ================= GAME OVER SCREEN ================= -->
+  <section id="gameover-screen" class="hidden">
+    <h2>Nooo! Try again !!</h2>
+    <p id="final-score"></p>
+    <div id="gameover-buttons">
+      <button id="playagain-btn">🔄 Play Again</button>
+      <button id="changechar-btn" class="secondary-btn">🎀 Change Character</button>
+    </div>
+  </section>
+
+</div>
+
+<script>
+/* ================================================================
+   SANRIO SNAKE
+   A cute browser Snake game. Organized into clear sections:
+     1. CHARACTER DATA   - all character-specific art & colors
+     2. DRAWING HELPERS   - small reusable canvas shape functions
+     3. SCREEN MANAGEMENT - switching between select/game/gameover
+     4. GAME STATE & LOOP - the actual snake game logic
+   To add a new character, just add a new entry to CHARACTERS below!
+   ================================================================ */
+
+/* ----------------------------------------------------------------
+   1. CHARACTER DATA
+   Each character defines:
+     - name + emoji badge for the card
+     - a color palette (used for CSS theme + board + snake body)
+     - bodyEmojis: emoji(s) used for the snake's body segments
+     - foodEmoji: emoji used for the collectible food
+       onto a canvas, centered at (x, y) with total size `s`
+   ---------------------------------------------------------------- */
+
+// small helper used by every head-drawing function below
+
+const CHARACTERS = {
+  helloKitty: {
+    id: 'helloKitty',
+    name: 'Hello Kitty',
+    badge: '🎀',
+    colors: {
+      primary: '#ffb6c9', secondary: '#ffffff', accent: '#f5b3bb',
+      boardLight: '#fff0f5', boardDark: '#ffd6e3',
+      bgStart: '#f7e9ee', bgEnd: '#e3a3bb'
+    },
+    bodyEmojis: ['🎀', '💗'],
+    foodEmoji: '🍓',
+    headImage: 'images/Hello-Kitty.png'
+  },
+  cinnamoroll: {
+    id: 'cinnamoroll',
+    name: 'Cinnamoroll',
+    badge: '☁️',
+    colors: {
+      primary: '#bfe6ff', secondary: '#ffffff', accent: '#7ec8f2',
+      boardLight: '#eef9ff', boardDark: '#cdeeff',
+      bgStart: '#e0f4ff', bgEnd: '#79badb'
+    },
+    bodyEmojis: ['☁️'],
+    foodEmoji: '🍥',
+    headImage: 'images/Cinnamoroll.png'
+  },
+  kuromi: {
+    id: 'kuromi',
+    name: 'Kuromi',
+    badge: '😈',
+    colors: {
+      primary: '#b39ddb', secondary: '#ffffff', accent: '#b679e8',
+      boardLight: '#f3ecff', boardDark: '#d9c6f2',
+      bgStart: '#dbcef0', bgEnd: '#8c69c7'
+    },
+    bodyEmojis: ['💜', '💀'],
+    foodEmoji: '🍬',
+    headImage: 'images/Kuromi.png'
+
+  },
+  myMelody: {
+    id: 'myMelody',
+    name: 'My Melody',
+    badge: '🌸',
+    colors: {
+      primary: '#ffc0da', secondary: '#ffffff', accent: '#ff8fb3',
+      boardLight: '#fff0f7', boardDark: '#ffd9ea',
+      bgStart: '#ffe6f0', bgEnd: '#f294d9'
+    },
+    bodyEmojis: ['🌸', '💗'],
+    foodEmoji: '🍓',
+    headImage: 'images/My-Melody.png'
+  },
+  pompompurin: {
+    id: 'pompompurin',
+    name: 'Pompompurin',
+    badge: '🍮',
+    colors: {
+      primary: '#ffe4a1', secondary: '#ffffff', accent: '#e0a95c',
+      boardLight: '#fff6e0', boardDark: '#ffe9b8',
+      bgStart: '#fff3d6', bgEnd: '#c7bf6d'
+    },
+    bodyEmojis: ['🍮'],
+    foodEmoji: '🍮',
+    headImage: 'images/Pompompurin.png'
+  },
+  keroppi: {
+    id: 'keroppi',
+    name: 'Keroppi',
+    badge: '🐸',
+    colors: {
+      primary: '#a6e3a6', secondary: '#ffffff', accent: '#629c73',
+      boardLight: '#f0fff0', boardDark: '#d2f5d2',
+      bgStart: '#e3ffe3', bgEnd: '#82c287'
+    },
+    bodyEmojis: ['🍃', '🟢'],
+    foodEmoji: '🐛',
+    headImage: 'images/Keroppi.png'
+  }
+};
+
+/* ----------------------------------------------------------------
+   2. DRAWING HELPERS (used by the game board, snake body & sparkles)
+   ---------------------------------------------------------------- */
+
+function roundRectPath(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+function drawBoard(ctx, cols, rows, cellSize, character) {
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      const isLight = (row + col) % 2 === 0;
+      ctx.fillStyle = isLight ? character.colors.boardLight : character.colors.boardDark;
+      ctx.fillRect(col * cellSize, row * cellSize, cellSize, cellSize);
+    }
+  }
+}
+
+function drawSnakeSegment(ctx, x, y, cellSize, segmentIndex, character) {
+  const emoji = character.bodyEmojis[segmentIndex % character.bodyEmojis.length];
+  const isEven = segmentIndex % 2 === 0;
+  roundRectPath(ctx, x - cellSize / 2 + 2, y - cellSize / 2 + 2, cellSize - 4, cellSize - 4, 6);
+  ctx.fillStyle = isEven ? character.colors.primary : character.colors.secondary;
+  ctx.fill();
+  ctx.font = `${cellSize * 0.65}px serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(emoji, x, y + 1);
+}
+
+function drawFood(ctx, x, y, cellSize, character, pulseScale) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(pulseScale, pulseScale);
+  ctx.font = `${cellSize * 0.8}px serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(character.foodEmoji, 0, 1);
+  ctx.restore();
+}
+
+/* ----------------------------------------------------------------
+   3. SCREEN MANAGEMENT
+   ---------------------------------------------------------------- */
+
+const selectScreen = document.getElementById('select-screen');
+const gameScreen = document.getElementById('game-screen');
+const gameoverScreen = document.getElementById('gameover-screen');
+const characterGrid = document.getElementById('character-grid');
+const playBtn = document.getElementById('play-btn');
+
+let selectedCharacterId = null;
+
+function renderCharacterGrid() {
+  characterGrid.innerHTML = '';
+  Object.values(CHARACTERS).forEach(character => {
+    const card = document.createElement('div');
+    card.className = 'char-card';
+    card.dataset.id = character.id;
+
+    const img = document.createElement('img');
+    img.src = character.headImage;
+    img.width = 90;
+    img.height = 90;
+    img.style.objectFit = 'contain';
+    img.style.display = 'block';
+    img.style.margin = '0 auto 6px';
+
+    const nameEl = document.createElement('div');
+    nameEl.className = 'char-name';
+    nameEl.textContent = `${character.badge} ${character.name}`;
+
+    card.appendChild(img);
+    card.appendChild(nameEl);
+    card.addEventListener('click', () => selectCharacter(character.id));
+    characterGrid.appendChild(card);
+  });
+}
+
+function selectCharacter(id) {
+  selectedCharacterId = id;
+
+  document.querySelectorAll('.char-card').forEach(card => {
+    card.classList.toggle('selected', card.dataset.id === id);
+  });
+
+  // change the whole page theme immediately
+  applyTheme(CHARACTERS[id]);
+
+  playBtn.disabled = false;
+}
+
+function applyTheme(character) {
+  const root = document.documentElement.style;
+  const c = character.colors;
+  root.setProperty('--primary', c.primary);
+  root.setProperty('--secondary', c.secondary);
+  root.setProperty('--accent', c.accent);
+  root.setProperty('--board-light', c.boardLight);
+  root.setProperty('--board-dark', c.boardDark);
+  root.setProperty('--bg-start', c.bgStart);
+  root.setProperty('--bg-end', c.bgEnd);
+}
+
+function showScreen(name) {
+  selectScreen.classList.toggle('hidden', name !== 'select');
+  gameScreen.classList.toggle('hidden', name !== 'game');
+  gameoverScreen.classList.toggle('hidden', name !== 'gameover');
+}
+
+playBtn.addEventListener('click', () => {
+  if (!selectedCharacterId) return;
+  const character = CHARACTERS[selectedCharacterId];
+  applyTheme(character);
+  showScreen('game');
+  startGame(character);
+});
+
+document.getElementById('back-btn').addEventListener('click', () => {
+  stopGame();
+  showScreen('select');
+});
+
+document.getElementById('changechar-btn').addEventListener('click', () => {
+  showScreen('select');
+});
+
+document.getElementById('restart-btn').addEventListener('click', () => {
+  startGame(CHARACTERS[selectedCharacterId]);
+});
+
+document.getElementById('playagain-btn').addEventListener('click', () => {
+  showScreen('game');
+  startGame(CHARACTERS[selectedCharacterId]);
+});
+
+/* ----------------------------------------------------------------
+   4. GAME STATE & LOOP
+   ---------------------------------------------------------------- */
+
+const canvas = document.getElementById('game-canvas');
+const ctx = canvas.getContext('2d');
+
+const COLS = 20;
+const ROWS = 20;
+const CELL_SIZE = canvas.width / COLS; // 22px
+
+const HIGH_SCORE_KEY = 'sanrioSnakeHighScore';
+
+let snake = [];           // array of {x, y} grid cells, index 0 = head
+let direction = { x: 1, y: 0 };
+let nextDirection = { x: 1, y: 0 };
+let food = { x: 0, y: 0 };
+let score = 0;
+let highScore = Number(localStorage.getItem(HIGH_SCORE_KEY)) || 0;
+let moveInterval = 140;   // ms between moves; gets smaller as you eat
+let timeSinceLastMove = 0;
+let lastTimestamp = null;
+let eatPulse = 0;         // >0 while the head is doing its "eat bounce"
+let particles = [];       // sparkle effects
+let gameRunning = false;
+let currentCharacter = null;
+let rafId = null;
+
+document.getElementById('highscore').textContent = highScore;
+
+function startGame(character) {
+  currentCharacter = character;
+  snake = [
+    { x: 8, y: 10 },
+    { x: 7, y: 10 },
+    { x: 6, y: 10 }
+  ];
+  direction = { x: 1, y: 0 };
+  nextDirection = { x: 1, y: 0 };
+  score = 0;
+  moveInterval = 140;
+  timeSinceLastMove = 0;
+  lastTimestamp = null;
+  eatPulse = 0;
+  particles = [];
+  gameRunning = true;
+  document.getElementById('score').textContent = score;
+  document.getElementById('highscore').textContent = highScore;
+  placeFood();
+  showScreen('game');
+  if (rafId) cancelAnimationFrame(rafId);
+  rafId = requestAnimationFrame(gameLoop);
+}
+
+function stopGame() {
+  gameRunning = false;
+  if (rafId) cancelAnimationFrame(rafId);
+}
+
+function placeFood() {
+  let cell;
+  do {
+    cell = {
+      x: Math.floor(Math.random() * COLS),
+      y: Math.floor(Math.random() * ROWS)
+    };
+  } while (snake.some(seg => seg.x === cell.x && seg.y === cell.y));
+  food = cell;
+}
+
+function spawnSparkles(gridX, gridY) {
+  const px = gridX * CELL_SIZE + CELL_SIZE / 2;
+  const py = gridY * CELL_SIZE + CELL_SIZE / 2;
+  const glyphs = ['✨', '⭐', '💫', '♡'];
+  for (let i = 0; i < 8; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 30 + Math.random() * 40;
+    particles.push({
+      x: px, y: py,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      life: 500 + Math.random() * 200,
+      maxLife: 700,
+      glyph: glyphs[Math.floor(Math.random() * glyphs.length)],
+      size: 10 + Math.random() * 8
+    });
+  }
+}
+
+function updateParticles(dt) {
+  particles.forEach(p => {
+    p.x += p.vx * (dt / 1000);
+    p.y += p.vy * (dt / 1000);
+    p.life -= dt;
+  });
+  particles = particles.filter(p => p.life > 0);
+}
+
+function drawParticles() {
+  particles.forEach(p => {
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, p.life / p.maxLife);
+    ctx.font = `${p.size}px serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(p.glyph, p.x, p.y);
+    ctx.restore();
+  });
+}
+
+function keysMatch(dx1, dy1, dx2, dy2) {
+  return dx1 === dx2 && dy1 === dy2;
+}
+
+window.addEventListener('keydown', (e) => {
+  if (!gameRunning) return;
+  const key = e.key.toLowerCase();
+  let wanted = null;
+  if (key === 'arrowup' || key === 'w') wanted = { x: 0, y: -1 };
+  else if (key === 'arrowdown' || key === 's') wanted = { x: 0, y: 1 };
+  else if (key === 'arrowleft' || key === 'a') wanted = { x: -1, y: 0 };
+  else if (key === 'arrowright' || key === 'd') wanted = { x: 1, y: 0 };
+  if (!wanted) return;
+  e.preventDefault();
+  // ignore reversing directly into yourself
+  if (keysMatch(wanted.x, wanted.y, -direction.x, -direction.y)) return;
+  nextDirection = wanted;
+});
+
+function advanceSnake() {
+  direction = nextDirection;
+  const head = snake[0];
+    const newHead = {
+    x: (head.x + direction.x + COLS) % COLS,
+    y: (head.y + direction.y + ROWS) % ROWS
+    };
+
+  // self collision
+  if (snake.some(seg => seg.x === newHead.x && seg.y === newHead.y)) {
+    return endGame();
+  }
+
+  snake.unshift(newHead);
+
+  const ateFood = newHead.x === food.x && newHead.y === food.y;
+  if (ateFood) {
+    score += 10;
+    document.getElementById('score').textContent = score;
+    eatPulse = 220; // ms of head "bounce"
+    spawnSparkles(food.x, food.y);
+    moveInterval = Math.max(60, moveInterval - 3);
+    placeFood();
+  } else {
+    snake.pop(); // no growth, remove tail
+  }
+}
+
+function endGame() {
+  gameRunning = false;
+  if (score > highScore) {
+    highScore = score;
+    localStorage.setItem(HIGH_SCORE_KEY, String(highScore));
+  }
+  document.getElementById('final-score').textContent =
+    `Score: ${score}  •  Best: ${highScore}`;
+  showScreen('gameover');
+}
+
+const characterImages = {};
+
+Object.values(CHARACTERS).forEach(character => {
+  const img = new Image();
+  img.src = character.headImage;
+  characterImages[character.id] = img;
+});
+
+function render() {
+  const character = currentCharacter;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  drawBoard(ctx, COLS, ROWS, CELL_SIZE, character);
+
+  // food with a gentle bob + eat pulse
+  const bob = 1 + Math.sin(performance.now() / 200) * 0.06;
+  drawFood(
+    ctx,
+    food.x * CELL_SIZE + CELL_SIZE / 2,
+    food.y * CELL_SIZE + CELL_SIZE / 2,
+    CELL_SIZE,
+    character,
+    bob
+  );
+
+  // body (tail to just-behind-head)
+  for (let i = snake.length - 1; i >= 1; i--) {
+    const seg = snake[i];
+    drawSnakeSegment(
+      ctx,
+      seg.x * CELL_SIZE + CELL_SIZE / 2,
+      seg.y * CELL_SIZE + CELL_SIZE / 2,
+      CELL_SIZE,
+      i,
+      character
+    );
+  }
+
+  // head, with a little "eat bounce" scale
+  const head = snake[0];
+  const pulseScale = 1 + (eatPulse > 0 ? 0.25 * (eatPulse / 220) : 0);
+  const hx = head.x * CELL_SIZE + CELL_SIZE / 2;
+  const hy = head.y * CELL_SIZE + CELL_SIZE / 2;
+  ctx.save();
+  ctx.translate(hx, hy);
+  ctx.scale(pulseScale, pulseScale);
+  const img = characterImages[character.id];
+    const size = CELL_SIZE * 1.8;
+
+    ctx.drawImage(
+    img,
+    -size / 2,
+    -size / 2,
+    size,
+    size
+    );
+  ctx.restore();
+  drawParticles();
+}
+
+function gameLoop(timestamp) {
+  if (!gameRunning) return;
+  if (lastTimestamp === null) lastTimestamp = timestamp;
+  const dt = timestamp - lastTimestamp;
+  lastTimestamp = timestamp;
+
+  timeSinceLastMove += dt;
+  if (eatPulse > 0) eatPulse = Math.max(0, eatPulse - dt);
+  updateParticles(dt);
+
+  if (timeSinceLastMove >= moveInterval) {
+    timeSinceLastMove = 0;
+    advanceSnake();
+  }
+
+  render();
+
+  if (gameRunning) {
+    rafId = requestAnimationFrame(gameLoop);
+  }
+}
+
+/* ----------------------------------------------------------------
+   INIT
+   ---------------------------------------------------------------- */
+renderCharacterGrid();
+showScreen('select');
+</script>
+</body>
+</html>
