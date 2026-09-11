@@ -1,15 +1,14 @@
 # programming_portfolio
 
 A place for all my programming experinents along the way :)
-==> could be incomplete...
+==> could be incomplete... will get better eventually!
 
 ## Projects
 
-### 1. Sanrio Snake
+### 1. Sanrio Snake 𓆙
 
-- A classic Snake game decorated with Sanrio characters and customisable colour backgrounds :)
-
-Languages used:
-- HTML
-- CSS
-- JavaScript
+- A classic Snake game decorated with distinct Sanrio characters
+- Changable back ground themes and colours
+- Only end-game condition is when the snake touches its own body... can go through the wall!
+  
+- Used languages: HTML, CSS, JavaScript
