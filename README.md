@@ -1,6 +1,6 @@
 # programming_portfolio
 
-A place for all my programming experinents along the way :) 
+A place for all my programming experiments along the way :) 
 
 --> could be incomplete... will get better eventually!
 
